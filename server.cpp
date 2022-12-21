@@ -19,15 +19,15 @@ pair<int,string> accept_connection(int socket_descriptor);
 int build_socket();
 int main() {
     int clients_ctr =0;
-    int socket_descriptor; pair<int,string>socket_to_command;
+    int socket_descriptor; pair<int,string>socket_to_command;int new_file_socket;
     socket_descriptor = build_socket();
     while(1){
         if(clientpolls.size()<MAX_CLIENTS){
-            socket_to_command = accept_connection(socket_descriptor);
-            struct pollfd newfd; newfd.fd = socket_to_command.first;
+            new_file_socket = accept_connection(socket_descriptor);
+            struct pollfd newfd; newfd.fd = new_file_socket;
             newfd.events = POLL_IN;
             clientpolls.push_back(newfd);
-            thread command_handler(handle_command,socket_to_command,clientpolls.size());
+            thread command_handler(handle_command,new_file_socket,clientpolls.size());
             command_handler.detach();
         }
         else{
@@ -46,23 +46,17 @@ void establish_persistent_connection(int socket,int clients){
         setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 }
 
-pair<int,string> accept_connection(int socket_descriptor){
+int accept_connection(int socket_descriptor){
     int addrinfoList;int y=1;int new_file_descriptor;
     pair<int,string>res;
     struct sockaddr_storage client_addr;
-    char command[1024];
     __socklen_t input_size ; 
     input_size = sizeof (client_addr); 
     new_file_descriptor = accept(socket_descriptor,(sockaddr*)&client_addr,&input_size);
     if(new_file_descriptor==-1){
         cout<<"failed to connect";exit(-1);
     }
-    int commnum = recv(new_file_descriptor,command,1023,0);
-    command[commnum] = '\0';
-    string new_command = command;
-    cout<<command<<" request received"<<endl;
-    res.first=new_file_descriptor;res.second=new_command;
-    return res;
+    return new_file_descriptor;
 }
 int build_socket(){
         struct addrinfo details, *servinfo, *i;
@@ -107,47 +101,38 @@ int build_socket(){
         }
         return socket_descriptor;
 }
-void handle_command(pair<int,string>connection,int clients){
-    int descriptor=connection.first;string command=connection.second;
-    int pos =0;
-    vector<string> args;
-    establish_persistent_connection(descriptor,clients);
-    string delim =" ";
-    pos=command.find(" ");
-    args.push_back(command.substr(0,pos)) ;
-    command.erase(0, pos + delim.length());
-    if(args[0] == "GET"){
-        while((pos=command.find(" ")) != string::npos){
-            args.push_back(command.substr(0,pos)) ;
-            command.erase(0, pos + delim.length());
-    }
-        if(command.length()!=0){args.push_back(command.substr(0,command.length()));}
-        
-        handle_get(descriptor,args.at(1),args.at(2));
-    }
-    else if(args[0] == "POST"){
-        if(send(descriptor,"ok status:200",13,0)==-1){
-
-            cout<<"unexpected disconnection!!"<<endl;return ;
+void handle_command(int descriptor,int clients){
+    char new_command[1024];
+    while(1){
+        int new_commnum = recv(descriptor,new_command,1023,0);
+        command[new_commnum] = '\0';
+        string command = new_command;
+        cout<<command<<" request received"<<endl;
+        vector<string> args;
+        establish_persistent_connection(descriptor,clients);
+        args = parse_request(command);
+        if(args[0]=="GET"){
+            handle_get(descriptor,args.at(1),args.at(2));
         }
-        handle_post(descriptor,command);
-    }
-    for(int i=0;i<clientpolls.size();i++){
-        if(clientpolls.at(i).fd == descriptor){
-            clientpolls.erase(clientpolls.begin()+i);
+        else if(args[0] == "POST"){
+            if(send(descriptor,"ok status:200",13,0)==-1){
+                cout<<"unexpected disconnection!!"<<endl;return ;
+            }
+            handle_post(descriptor,command);
+        }
+        for(int i=0;i<clientpolls.size();i++){
+            if(clientpolls.at(i).fd == descriptor){
+                clientpolls.erase(clientpolls.begin()+i);
+            }
         }
     }
     close(descriptor); 
 }
 void handle_get(int descriptor,string path,string params){
     ifstream fin(path, ifstream::binary);
-    if(fin){
-
-    }
     char text_to_be_sent[1024];
     while(!fin.eof()) {
         fin.read(text_to_be_sent,1023);
-        cout<<"sending "<< text_to_be_sent;
         int sig = send(descriptor,text_to_be_sent,1024,0);
         if(sig == -1){cout <<"Error during sending file";return;}
     }
@@ -159,6 +144,27 @@ void handle_post(int descriptor,string body){
     string path = get_current_dir_name();
     string actual_path = path +"/files/Post"+to_string(ctr)+".txt";ctr++;
     ofstream bodyfile(actual_path);
-    bodyfile.write(body.c_str(),body.size()); 
+    bodyfile.write(body.c_str(),body.size());
+    while(recv(descriptor,buffer,1023,0)!=-1){
+        body = buffer;
+        bodyfile.write(body.c_str(),body.size());
+    } 
     bodyfile.close();
+}
+vector<string> parse_request(string command){
+        vector<string>args;
+        int pos =0;
+        string delim =" ";
+        pos=command.find(" ");
+        args.push_back(command.substr(0,pos)) ;
+        command.erase(0, pos + delim.length());
+        if(args[0] == "GET"){
+            while((pos=command.find(" ")) != string::npos){
+                args.push_back(command.substr(0,pos)) ;
+                command.erase(0, pos + delim.length());
+        }
+            if(command.length()!=0){args.push_back(command.substr(0,command.length()));}
+            
+    }
+    return args;
 }
