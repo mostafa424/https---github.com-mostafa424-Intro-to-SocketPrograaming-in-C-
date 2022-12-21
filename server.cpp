@@ -105,8 +105,8 @@ int build_socket(){
 }
 void handle_command(int descriptor,int clients){
     char new_command[1024];
-    while(1){
-        int new_commnum = recv(descriptor,new_command,1023,0);
+    int new_commnum = 0;
+    while((new_commnum = recv(descriptor,new_command,1023,0))<0){
         new_command[new_commnum] = '\0';
         string command = new_command;
         cout<<command<<" request received"<<endl;
