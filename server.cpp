@@ -103,32 +103,41 @@ int build_socket(){
         }
         return socket_descriptor;
 }
-void handle_command(int descriptor,int clients){
+void handle_command(int descriptor, int clients) {
     char new_command[1024];
     int new_commnum = 0;
-    while((new_commnum = recv(descriptor,new_command,1023,0))>=0){
+    struct pollfd arr[1];
+    for (int i = 0; i < clientpolls.size(); i++) {
+        if (clientpolls.at(i).fd == descriptor) {
+            arr[0] = clientpolls.at(i);
+            clientpolls.erase(clientpolls.begin()+i);break;
+        }
+    }
+    poll(arr, 1, 1500);
+
+    while ((new_commnum = recv(descriptor, new_command, 1023, 0)) >= 0) {
         new_command[new_commnum] = '\0';
         string command = new_command;
-        cout<<command<<" request received"<<endl;
+        cout << command << " request received" << endl;
         vector<string> args;
-        establish_persistent_connection(descriptor,clients);
+        establish_persistent_connection(descriptor, clients);
         args = parse_request(command);
-        if(args[0]=="GET"){
-            handle_get(descriptor,args.at(1),args.at(2));
-        }
-        else if(args[0] == "POST"){
-            if(send(descriptor,"ok status:200",13,0)==-1){
-                cout<<"unexpected disconnection!!"<<endl;return ;
+        if (args[0] == "GET") {
+            handle_get(descriptor, args.at(1), args.at(2));
+        } else if (args[0] == "POST") {
+            if (send(descriptor, "ok status:200", 13, 0) == -1) {
+                cout << "unexpected disconnection!!" << endl;
+                return;
             }
-            handle_post(descriptor,command);
+            handle_post(descriptor, command);
         }
-        for(int i=0;i<clientpolls.size();i++){
-            if(clientpolls.at(i).fd == descriptor){
-                clientpolls.erase(clientpolls.begin()+i);
+        for (int i = 0; i < clientpolls.size(); i++) {
+            if (clientpolls.at(i).fd == descriptor) {
+                clientpolls.erase(clientpolls.begin() + i);
             }
         }
     }
-    close(descriptor); 
+    close(descriptor);
 }
 void handle_get(int descriptor,string path,string params){
     ifstream fin(path, ifstream::binary);
