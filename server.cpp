@@ -13,7 +13,7 @@
 #define TIMEOUT 10
 using namespace std;
 vector<struct pollfd> clientpolls ;
-void handle_command(int connection,int clients);
+void handle_command(int descriptor,int clients);
 void handle_get(int descriptor, string path, string params);
 void handle_post(int descriptor,string body);
 int accept_connection(int socket_descriptor);
@@ -106,7 +106,7 @@ int build_socket(){
 void handle_command(int descriptor,int clients){
     char new_command[1024];
     int new_commnum = 0;
-    while((new_commnum = recv(descriptor,new_command,1023,0))<0){
+    while((new_commnum = recv(descriptor,new_command,1023,0))>=0){
         new_command[new_commnum] = '\0';
         string command = new_command;
         cout<<command<<" request received"<<endl;
@@ -132,6 +132,10 @@ void handle_command(int descriptor,int clients){
 }
 void handle_get(int descriptor,string path,string params){
     ifstream fin(path, ifstream::binary);
+    if(!fin.good()){
+        send(descriptor,"Error 404: File Not Found ",1024,0);
+        return;
+    }
     char text_to_be_sent[1024];
     while(!fin.eof()) {
         fin.read(text_to_be_sent,1023);
@@ -170,4 +174,8 @@ vector<string> parse_request(string command){
             
     }
     return args;
+}
+inline bool exists_test0 (const std::string& name) {
+    ifstream f(name.c_str());
+    return f.good();
 }
