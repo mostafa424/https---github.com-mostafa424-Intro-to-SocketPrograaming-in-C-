@@ -145,7 +145,8 @@ void handle_post(int descriptor,string body){
     string actual_path = path +"/files/Post"+to_string(ctr)+".txt";ctr++;
     ofstream bodyfile(actual_path);
     bodyfile.write(body.c_str(),body.size());
-    while(recv(descriptor,buffer,1023,0)!=-1){
+    while((readbytes = recv(descriptor,buffer,1023,0))!=-1){
+        buffer[readbytes]='\0';
         body = buffer;
         bodyfile.write(body.c_str(),body.size());
     } 
