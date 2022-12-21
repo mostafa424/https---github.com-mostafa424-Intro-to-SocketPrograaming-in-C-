@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include<thread>
 #include <fstream>
 #include <netdb.h>
@@ -39,7 +40,7 @@ int main() {
     return 0;
 }
 void establish_persistent_connection(int socket,int clients){
-    float heuristic_timeout = TIMEOUT * (1 - (float)((float)clients / (float)MAX_CLIENTS))
+    float heuristic_timeout = TIMEOUT * (1 - (float)((float)clients / (float)MAX_CLIENTS));
     struct timeval tv;
         tv.tv_sec = heuristic_timeout;
         tv.tv_usec = 0;
