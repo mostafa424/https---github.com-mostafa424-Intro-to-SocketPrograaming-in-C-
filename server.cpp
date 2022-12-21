@@ -131,11 +131,6 @@ void handle_command(int descriptor, int clients) {
             }
             handle_post(descriptor, command);
         }
-        for (int i = 0; i < clientpolls.size(); i++) {
-            if (clientpolls.at(i).fd == descriptor) {
-                clientpolls.erase(clientpolls.begin() + i);
-            }
-        }
     }
     close(descriptor);
 }
