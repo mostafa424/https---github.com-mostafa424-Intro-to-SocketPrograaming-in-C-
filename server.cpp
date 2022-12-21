@@ -13,10 +13,11 @@
 #define TIMEOUT 10
 using namespace std;
 vector<struct pollfd> clientpolls ;
-void handle_command(pair<int,string> connection,int clients);
+void handle_command(int connection,int clients);
 void handle_get(int descriptor, string path, string params);
 void handle_post(int descriptor,string body);
-pair<int,string> accept_connection(int socket_descriptor);
+int accept_connection(int socket_descriptor);
+vector<string> parse_request(string command);
 int build_socket();
 int main() {
     int clients_ctr =0;
@@ -106,7 +107,7 @@ void handle_command(int descriptor,int clients){
     char new_command[1024];
     while(1){
         int new_commnum = recv(descriptor,new_command,1023,0);
-        command[new_commnum] = '\0';
+        new_command[new_commnum] = '\0';
         string command = new_command;
         cout<<command<<" request received"<<endl;
         vector<string> args;
